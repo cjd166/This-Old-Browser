@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+</head>
+<body>
+</body>
+<script>
+let MEDIA_RECORDER; 
+const RECORDED_CHUNKS = [];
+window.onload = () => {
+	let actionButton = document.createElement('button');
+	actionButton.id = "MainButton";
+	actionButton.innerText = "Start Recording";
+	actionButton.setAttribute('recording-state', 'off');
+	actionButton.onclick = abHandler;
+	document.body.appendChild(actionButton);
+}
+function abHandler(){
+	let actionButton = document.getElementById("MainButton");
+	let recordingState = actionButton.getAttribute("recording-state");
+	switch (recordingState){
+		case "off":
+			startCapture();
+			break;
+		case "on":
+			stopRecording();
+			break;
+		default:
+			break;
+	}
+}
+async function startCapture(){
+	try{
+		const stream = await navigator.mediaDevices.getDisplayMedia({
+			video: { cursor : 'always'},
+			audio: { systemAudio: 'include'}
+		});
+		startRecording(stream);
+		return stream;
+	} catch (err) {
+		console.error(`Error: ${err}`);
+		return null;
+	}
+}
+function startRecording(stream){
+	RECORDED_CHUNKS.length=0;
+	let actionButton = document.getElementById('MainButton');
+	actionButton.setAttribute('recording-state', 'on');
+	actionButton.innerText = 'Stop Recording';
+	MEDIA_RECORDER = new MediaRecorder(stream);
+	MEDIA_RECORDER.ondataavailable = (event) => {
+		if (event.data.size > 0) {
+			RECORDED_CHUNKS.push(event.data);
+		}};
+	MEDIA_RECORDER.onstop = () => {
+		actionButton.setAttribute('recording-state', 'off');
+		actionButton.innerText = "Start Recording";
+		downloadRecording();
+		stream.getTracks().forEach(track => track.stop());
+	};
+	MEDIA_RECORDER.start(1000);
+}
+function stopRecording() {
+	MEDIA_RECORDER.stop();
+}
+function downloadRecording() {
+	const blob = new Blob(RECORDED_CHUNKS, {
+			type: 'video/webm; codecs=vp9'
+	});
+	const url = URL.createObjectURL(blob);
+	const downloadLink = document.createElement('a');
+	document.body.appendChild(downloadLink);
+	downloadLink.style.display = "none";
+	downloadLink.href = url;
+	downloadLink.download = 'screen-recording.webm';
+	downloadLink.click();
+	window.URL.revokeObjectURL(url);
+	document.body.removeChild(downloadLink);
+}
+</script>
+</html>
